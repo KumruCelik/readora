@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  bio       String?
+  avatar    String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userBooks  UserBook[]
+  reviews    Review[]
+  shelves    Shelf[]
+  following  Follow[]   @relation("follower")
+  followers  Follow[]   @relation("following")
+  activities Activity[]
+}
+
+model Book {
+  id          String   @id @default(cuid())
+  isbn        String?  @unique
+  title       String
+  authors     String[]
+  genres      String[]
+  description String?
+  coverUrl    String?
+  language    String   @default("tr")
+  avgRating   Float    @default(0)
+  ratingCount Int      @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userBooks UserBook[]
+  reviews   Review[]
+  editions  Edition[]
+}
+
+model Edition {
+  id        String  @id @default(cuid())
+  isbn      String  @unique
+  bookId    String
+  language  String
+  publisher String?
+  year      Int?
+
+  book Book @relation(fields: [bookId], references: [id])
+}
+
+model UserBook {
+  id        String        @id @default(cuid())
+  userId    String
+  bookId    String
+  status    ReadingStatus @default(WANT_TO_READ)
+  rating    Int?
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id])
+  book      Book        @relation(fields: [bookId], references: [id])
+  shelfBooks ShelfBook[]
+
+  @@unique([userId, bookId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  bookId     String
+  content    String
+  rating     Int
+  hasSpoiler Boolean  @default(false)
+  helpful    Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  book Book @relation(fields: [bookId], references: [id])
+}
+
+model Shelf {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  shelfBooks ShelfBook[]
+}
+
+model ShelfBook {
+  shelfId    String
+  userBookId String
+  addedAt    DateTime @default(now())
+
+  shelf    Shelf    @relation(fields: [shelfId], references: [id])
+  userBook UserBook @relation(fields: [userBookId], references: [id])
+
+  @@id([shelfId, userBookId])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("follower",  fields: [followerId],  references: [id])
+  following User @relation("following", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+}
+
+model Activity {
+  id         String       @id @default(cuid())
+  userId     String
+  type       ActivityType
+  targetId   String
+  targetType String
+  createdAt  DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  USER
+  LIBRARIAN
+  ADMIN
+}
+
+enum ReadingStatus {
+  WANT_TO_READ
+  READING
+  READ
+}
+
+enum ActivityType {
+  RATED_BOOK
+  REVIEWED_BOOK
+  ADDED_TO_SHELF
+  FOLLOWED_USER
+  CREATED_LIST
+}
