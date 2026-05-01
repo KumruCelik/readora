@@ -1,5 +1,4 @@
 import { prisma } from './prisma'
-import axios from 'axios'
 
 // ISBN-10'dan ISBN-13'e dönüştür
 export function normalizeISBN(isbn: string): string {
