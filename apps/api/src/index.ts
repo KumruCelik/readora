@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import authRouter from './modules/auth/auth.router'
 
 dotenv.config()
 
@@ -10,9 +11,12 @@ const PORT = process.env.PORT || 3001
 app.use(cors())
 app.use(express.json())
 
+// Routes
+app.use('/api/v1/auth', authRouter)
+
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Readora API çalışıyor 🚀',
     timestamp: new Date().toISOString()
   })

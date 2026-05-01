@@ -33,7 +33,7 @@ importers:
         specifier: ^4.18.2
         version: 4.22.1
       jsonwebtoken:
-        specifier: ^9.0.2
+        specifier: ^9.0.3
         version: 9.0.3
     devDependencies:
       '@types/bcryptjs':
@@ -46,7 +46,7 @@ importers:
         specifier: ^4.17.21
         version: 4.17.25
       '@types/jsonwebtoken':
-        specifier: ^9.0.5
+        specifier: ^9.0.10
         version: 9.0.10
       '@types/pg':
         specifier: ^8.18.0
