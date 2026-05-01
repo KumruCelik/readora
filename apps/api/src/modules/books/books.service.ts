@@ -1,6 +1,8 @@
 import axios from 'axios'
 import redis from '../../lib/redis'
 import { prisma } from '../../lib/prisma'
+import { findOrCreateBook } from '../../lib/isbn'
+import { searchOpenLibrary } from '../../lib/openLibrary'
 
 const GOOGLE_BOOKS_URL = 'https://www.googleapis.com/books/v1'
 const API_KEY = process.env.GOOGLE_BOOKS_API_KEY
@@ -87,18 +89,22 @@ function formatBook(item: any) {
 }
 
 async function saveBookToDB(book: any) {
-  return await prisma.book.upsert({
-    where:  { isbn: book.isbn || `google_${book.googleId}` },
-    update: { coverUrl: book.coverUrl, description: book.description },
-    create: {
-      isbn:        book.isbn || `google_${book.googleId}`,
-      title:       book.title,
-      authors:     book.authors,
-      genres:      book.genres,
-      description: book.description,
-      coverUrl:    book.coverUrl,
-      language:    book.language,
-      publishedAt: book.publishedAt,
-    }
-  })
+  return await findOrCreateBook(book)
+}
+
+export async function searchTurkishBooks(query: string, limit = 10) {
+  const cacheKey = `search:tr:${query}:${limit}`
+
+  const cached = await redis.get(cacheKey)
+  if (cached) return JSON.parse(cached)
+
+  const books = await searchOpenLibrary(query, limit)
+
+  await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(books))
+
+  for (const book of books) {
+    await findOrCreateBook(book)
+  }
+
+  return books
 }

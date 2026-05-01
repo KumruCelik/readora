@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -26,19 +27,20 @@ model User {
 }
 
 model Book {
-  id          String   @id @default(cuid())
-  isbn        String?  @unique
+  id          String    @id @default(cuid())
+  googleId    String?   @unique           
+  isbn        String?   @unique
   title       String
   authors     String[]
   genres      String[]
   description String?
   coverUrl    String?
-  language    String   @default("tr")
-  avgRating   Float    @default(0)
-  ratingCount Int      @default(0)
+  language    String    @default("tr")
+  avgRating   Float     @default(0)
+  ratingCount Int       @default(0)
   publishedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   userBooks UserBook[]
   reviews   Review[]

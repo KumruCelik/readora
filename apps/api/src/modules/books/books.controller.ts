@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { searchBooks, getBookByISBN } from './books.service'
+import { searchBooks, getBookByISBN, searchTurkishBooks } from './books.service'
 import { prisma } from '../../lib/prisma'
 
 export async function search(req: Request, res: Response) {
@@ -14,6 +14,33 @@ export async function search(req: Request, res: Response) {
     }
 
     const books = await searchBooks(
+      q as string,
+      limit ? parseInt(limit as string) : 10
+    )
+
+    return res.json({ success: true, data: books })
+
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}
+
+export async function searchTurkish(req: Request, res: Response) {
+  try {
+    const { q, limit } = req.query
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_QUERY', message: 'Arama terimi gerekli' }
+      })
+    }
+
+    const books = await searchTurkishBooks(
       q as string,
       limit ? parseInt(limit as string) : 10
     )
