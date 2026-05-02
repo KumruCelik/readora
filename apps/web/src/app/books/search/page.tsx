@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import api from '@/lib/api'
 import Image from 'next/image'
@@ -16,6 +17,7 @@ interface Book {
 }
 
 export default function BookSearchPage() {
+  const router = useRouter()
   const [query, setQuery]     = useState('')
   const [books, setBooks]     = useState<Book[]>([])
   const [loading, setLoading] = useState(false)
@@ -140,7 +142,10 @@ export default function BookSearchPage() {
                 key={bookKey || i}
                 className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="w-full h-44 bg-gray-100 relative">
+                <div
+                  className="w-full h-44 bg-gray-100 relative cursor-pointer"
+                  onClick={() => book.id && router.push(`/books/${book.id}`)}
+                >
                   {book.coverUrl ? (
                     <Image
                       src={book.coverUrl}

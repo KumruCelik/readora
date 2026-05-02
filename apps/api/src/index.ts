@@ -5,6 +5,7 @@ import authRouter from './modules/auth/auth.router'
 import booksRouter from './modules/books/books.router'
 import usersRouter  from './modules/users/users.router'
 import shelvesRouter from './modules/shelves/shelves.router'
+import reviewsRouter from './modules/reviews/reviews.router'
 
 dotenv.config()
 
@@ -19,6 +20,7 @@ app.use('/api/v1/auth',  authRouter)
 app.use('/api/v1/books', booksRouter)
 app.use('/api/v1/users',   usersRouter)
 app.use('/api/v1/shelves', shelvesRouter)
+app.use('/api/v1/reviews', reviewsRouter)
 
 app.get('/health', (req, res) => {
   res.json({
