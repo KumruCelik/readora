@@ -3,17 +3,23 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { useState, useEffect } from 'react'
 
 export default function Navbar() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    setIsLoggedIn(!!localStorage.getItem('accessToken'))
+  }, [])
 
   function handleLogout() {
     localStorage.removeItem('accessToken')
+    setIsLoggedIn(false)
     router.push('/login')
   }
-
-  const isLoggedIn = typeof window !== 'undefined' && 
-    !!localStorage.getItem('accessToken')
 
   return (
     <nav className="bg-[#2D2D2D] text-white px-6 py-4 flex items-center justify-between">
@@ -26,32 +32,34 @@ export default function Navbar() {
           Kitaplar
         </Link>
 
-        {isLoggedIn ? (
-          <>
-            <Link href="/profile" className="hover:text-[#E8694A] transition-colors">
-              Profilim
-            </Link>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="border-[#E8694A] text-[#E8694A] hover:bg-[#E8694A] hover:text-white"
-            >
-              Çıkış
-            </Button>
-          </>
-        ) : (
-          <>
-            <Link href="/login">
-              <Button variant="ghost" className="text-white hover:text-[#E8694A]">
-                Giriş
+        {mounted && (
+          isLoggedIn ? (
+            <>
+              <Link href="/profile" className="hover:text-[#E8694A] transition-colors">
+                Profilim
+              </Link>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-[#E8694A] text-[#E8694A] hover:bg-[#E8694A] hover:text-white"
+              >
+                Çıkış
               </Button>
-            </Link>
-            <Link href="/register">
-              <Button className="bg-[#E8694A] hover:bg-[#d4563a] text-white">
-                Kayıt Ol
-              </Button>
-            </Link>
-          </>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost" className="text-white hover:text-[#E8694A]">
+                  Giriş
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button className="bg-[#E8694A] hover:bg-[#d4563a] text-white">
+                  Kayıt Ol
+                </Button>
+              </Link>
+            </>
+          )
         )}
       </div>
     </nav>
