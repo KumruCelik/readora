@@ -3,6 +3,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import authRouter from './modules/auth/auth.router'
 import booksRouter from './modules/books/books.router'
+import usersRouter  from './modules/users/users.router'
+import shelvesRouter from './modules/shelves/shelves.router'
 
 dotenv.config()
 
@@ -15,6 +17,8 @@ app.use(express.json())
 // Routes
 app.use('/api/v1/auth',  authRouter)
 app.use('/api/v1/books', booksRouter)
+app.use('/api/v1/users',   usersRouter)
+app.use('/api/v1/shelves', shelvesRouter)
 
 app.get('/health', (req, res) => {
   res.json({
