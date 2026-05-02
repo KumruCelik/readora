@@ -24,7 +24,6 @@ export async function findOrCreateBook(bookData: any) {
   // 1. ISBN varsa direkt ara
   if (bookData.isbn) {
     const normalized = normalizeISBN(bookData.isbn)
-
     const existing = await prisma.book.findUnique({
       where: { isbn: normalized }
     })
@@ -50,13 +49,17 @@ export async function findOrCreateBook(bookData: any) {
     if (fuzzy) return fuzzy
   }
 
-  // 4. Hiç eşleşme yoksa yeni kayıt oluştur
+  // 4. Hiç eşleşme yoksa upsert ile oluştur (duplicate hatası önle)
   const isbn = bookData.isbn ? normalizeISBN(bookData.isbn) : null
+  const isbnKey = isbn || (bookData.googleId ? `google_${bookData.googleId}` : null)
 
-  return await prisma.book.create({
-    data: {
+  return await prisma.book.upsert({
+    where: {
+      isbn: isbnKey ?? `unknown_${Date.now()}`
+    },
+    create: {
       googleId:    bookData.googleId || null,
-      isbn:        isbn || (bookData.googleId ? `google_${bookData.googleId}` : null),
+      isbn:        isbnKey,
       title:       bookData.title,
       authors:     bookData.authors || [],
       genres:      bookData.genres || [],
@@ -64,6 +67,10 @@ export async function findOrCreateBook(bookData: any) {
       coverUrl:    bookData.coverUrl || null,
       language:    bookData.language || 'tr',
       publishedAt: bookData.publishedAt || null,
+    },
+    update: {
+      coverUrl:    bookData.coverUrl || undefined,
+      description: bookData.description || undefined,
     }
   })
 }

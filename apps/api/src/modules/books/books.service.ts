@@ -24,19 +24,20 @@ export async function searchBooks(query: string, limit = 10) {
       q: query,
       maxResults: limit,
       key: API_KEY,
-      langRestrict: 'tr',
     }
   })
 
-  const books = response.data.items?.map(formatBook) || []
+  const formatted = response.data.items?.map(formatBook) || []
 
-  // 3. Cache'e kaydet
-  await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(books))
-
-  // 4. Veritabanına kaydet
-  for (const book of books) {
-    await saveBookToDB(book)
+  // 3. Veritabanına kaydet ve DB ID'sini al
+  const books = []
+  for (const book of formatted) {
+    const saved = await saveBookToDB(book)
+    books.push({ ...book, id: saved.id })
   }
+
+  // 4. Cache'e kaydet
+  await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(books))
 
   return books
 }
@@ -100,11 +101,14 @@ export async function searchTurkishBooks(query: string, limit = 10) {
 
   const books = await searchOpenLibrary(query, limit)
 
-  await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(books))
-
+  // Veritabanına kaydet ve DB ID'sini al
+  const savedBooks = []
   for (const book of books) {
-    await findOrCreateBook(book)
+    const saved = await findOrCreateBook(book)
+    savedBooks.push({ ...book, id: saved.id })
   }
 
-  return books
+  await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(savedBooks))
+
+  return savedBooks
 }

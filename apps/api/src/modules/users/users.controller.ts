@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { prisma } from '../../lib/prisma'
 import { AuthRequest } from '../../middleware/auth'
 import cloudinary from '../../lib/cloudinary'
+import redis from '../../lib/redis'
 
 export async function uploadAvatar(req: AuthRequest, res: Response) {
   try {
@@ -127,6 +128,77 @@ export async function getStats(req: AuthRequest, res: Response) {
     return res.json({
       success: true,
       data: { totalBooks, readBooks, reviews, topGenre }
+    })
+
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}
+
+export async function setReadingGoal(req: AuthRequest, res: Response) {
+  try {
+    const { goal, year } = req.body
+
+    if (!goal || goal < 1 || goal > 365) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_GOAL', message: 'Hedef 1-365 arasında olmalı' }
+      })
+    }
+
+    const currentYear = year || new Date().getFullYear()
+
+    // User tablosuna goal alanı ekleyeceğiz
+    // Şimdilik Redis'te saklayalım
+    await redis.set(
+      `reading_goal:${req.userId}:${currentYear}`,
+      JSON.stringify({ goal, year: currentYear })
+    )
+
+    return res.json({
+      success: true,
+      data: { goal, year: currentYear }
+    })
+
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}
+
+export async function getReadingGoal(req: AuthRequest, res: Response) {
+  try {
+    const year = req.query.year || new Date().getFullYear()
+
+    const cached = await redis.get(`reading_goal:${req.userId}:${year}`)
+    const goalData = cached ? JSON.parse(cached) : null
+
+    // Bu yıl okunan kitap sayısı
+    const startOfYear = new Date(`${year}-01-01`)
+    const endOfYear   = new Date(`${year}-12-31`)
+
+    const readCount = await prisma.userBook.count({
+      where: {
+        userId: req.userId,
+        status: 'READ',
+        finishedAt: { gte: startOfYear, lte: endOfYear }
+      }
+    })
+
+    return res.json({
+      success: true,
+      data: {
+        goal:      goalData?.goal || null,
+        year:      Number(year),
+        readCount,
+        progress:  goalData?.goal ? Math.round((readCount / goalData.goal) * 100) : 0
+      }
     })
 
   } catch (err) {

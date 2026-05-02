@@ -139,8 +139,95 @@ export default function ProfilePage() {
           </div>
         )}
 
+        <ReadingGoalSection />
         <ShelvesSection userId={user.id} />
       </div>
+    </div>
+  )
+}
+
+function ReadingGoalSection() {
+  const [goal, setGoal]         = useState<number | null>(null)
+  const [readCount, setReadCount] = useState(0)
+  const [progress, setProgress] = useState(0)
+  const [newGoal, setNewGoal]   = useState('')
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    fetchGoal()
+  }, [])
+
+  async function fetchGoal() {
+    try {
+      const res = await api.get('/users/reading-goal')
+      const data = res.data.data
+      setGoal(data.goal)
+      setReadCount(data.readCount)
+      setProgress(data.progress)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSetGoal(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newGoal) return
+    try {
+      await api.post('/users/reading-goal', { goal: parseInt(newGoal) })
+      setGoal(parseInt(newGoal))
+      setNewGoal('')
+      fetchGoal()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  if (loading) return null
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+      <h2 className="text-xl font-bold text-[#2D2D2D] mb-4">
+        🎯 Yıllık Okuma Hedefi ({new Date().getFullYear()})
+      </h2>
+
+      {goal ? (
+        <div>
+          <div className="flex justify-between text-sm text-gray-600 mb-2">
+            <span>{readCount} kitap okundu</span>
+            <span>Hedef: {goal} kitap</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
+            <div
+              className="bg-[#E8694A] h-4 rounded-full transition-all"
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+          <p className="text-sm text-gray-500 text-center">
+            %{progress} tamamlandı
+            {progress >= 100 && ' 🎉 Hedefine ulaştın!'}
+          </p>
+        </div>
+      ) : (
+        <p className="text-gray-400 text-sm mb-4">Henüz hedef belirlemedin.</p>
+      )}
+
+      <form onSubmit={handleSetGoal} className="flex gap-2 mt-4">
+        <input
+          type="number"
+          placeholder="Bu yıl kaç kitap okuyacaksın?"
+          value={newGoal}
+          onChange={(e) => setNewGoal(e.target.value)}
+          min={1}
+          max={365}
+          className="flex-1 h-10 px-3 rounded-md border border-gray-300 text-sm"
+        />
+        <button
+          type="submit"
+          className="px-4 py-2 bg-[#E8694A] text-white rounded-md text-sm hover:bg-[#d4563a]"
+        >
+          {goal ? 'Güncelle' : 'Hedef Belirle'}
+        </button>
+      </form>
     </div>
   )
 }
