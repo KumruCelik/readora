@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS } from '../constants/colors'
+import { API_URL } from '../constants/config'
 
 interface Props {
   embedded?: boolean
@@ -31,9 +34,30 @@ const ALL_GENRES = [
 ]
 
 export default function SearchScreen({ embedded = false }: Props) {
-  const [query, setQuery] = useState('')
-  const [lang, setLang] = useState<'global' | 'tr'>('global')
+  const [query, setQuery]     = useState('')
+  const [lang, setLang]       = useState<'global' | 'tr'>('global')
+  const [results, setResults] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searched, setSearched] = useState(false)
   const Wrapper = embedded ? View : SafeAreaView
+
+  async function handleSearch() {
+    if (!query.trim()) return
+    setLoading(true)
+    setSearched(true)
+    try {
+      const endpoint = lang === 'tr'
+        ? `${API_URL}/books/search/turkish?q=${encodeURIComponent(query)}`
+        : `${API_URL}/books/search?q=${encodeURIComponent(query)}`
+      const res = await fetch(endpoint)
+      const data = await res.json()
+      setResults(data.success ? data.data : [])
+    } catch {
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Wrapper style={styles.safe}>
@@ -94,11 +118,47 @@ export default function SearchScreen({ embedded = false }: Props) {
                 </Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.searchBtn}>
+            <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
               <Text style={styles.searchBtnText}>Ara</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Arama Sonuçları */}
+        {loading && (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        )}
+
+        {!loading && searched && results.length === 0 && (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>Sonuç bulunamadı.</Text>
+          </View>
+        )}
+
+        {!loading && results.length > 0 && (
+          <View style={styles.resultsSection}>
+            <Text style={styles.resultsTitle}>Sonuçlar ({results.length})</Text>
+            {results.map((book, i) => (
+              <View key={book.id ?? i} style={styles.resultRow}>
+                {book.coverUrl ? (
+                  <Image source={{ uri: book.coverUrl }} style={styles.resultCover} />
+                ) : (
+                  <View style={[styles.resultCover, styles.resultCoverEmpty]}>
+                    <Ionicons name="book-outline" size={20} color={COLORS.outline} />
+                  </View>
+                )}
+                <View style={styles.resultInfo}>
+                  <Text style={styles.resultTitle} numberOfLines={2}>{book.title}</Text>
+                  <Text style={styles.resultAuthor} numberOfLines={1}>
+                    {book.authors?.join(', ')}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Türe Göre Keşfet */}
         <View style={styles.section}>
@@ -283,4 +343,24 @@ const styles = StyleSheet.create({
     borderRadius: 16, paddingVertical: 14, alignItems: 'center',
   },
   moreBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.5 },
+
+  loadingBox: { paddingVertical: 32, alignItems: 'center' },
+  emptyBox: { paddingVertical: 24, alignItems: 'center', paddingHorizontal: 16 },
+  emptyText: { fontSize: 15, color: COLORS.outline },
+
+  resultsSection: { paddingHorizontal: 16, paddingVertical: 12 },
+  resultsTitle: { fontSize: 14, fontWeight: '600', color: COLORS.onSurfaceVariant, marginBottom: 12 },
+  resultRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: COLORS.outlineVariant,
+  },
+  resultCover: { width: 48, height: 64, borderRadius: 6 },
+  resultCoverEmpty: {
+    backgroundColor: COLORS.surfaceContainerHigh,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  resultInfo: { flex: 1 },
+  resultTitle: { fontSize: 14, fontWeight: '500', color: COLORS.onSurface },
+  resultAuthor: { fontSize: 12, color: COLORS.outline, marginTop: 2 },
 })
