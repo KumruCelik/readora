@@ -208,3 +208,179 @@ export async function getReadingGoal(req: AuthRequest, res: Response) {
     })
   }
 }
+
+export async function followUser(req: AuthRequest, res: Response) {
+  try {
+    const { username } = req.params
+
+    const target = await prisma.user.findUnique({ where: { username } })
+    if (!target) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Kullanıcı bulunamadı' }
+      })
+    }
+
+    if (target.id === req.userId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'SELF_FOLLOW', message: 'Kendini takip edemezsin' }
+      })
+    }
+
+    const existing = await prisma.follow.findFirst({
+      where: { followerId: req.userId!, followingId: target.id }
+    })
+
+    if (existing) {
+      await prisma.follow.delete({
+        where: { followerId_followingId: { followerId: req.userId!, followingId: target.id } }
+      })
+      return res.json({ success: true, data: { following: false } })
+    }
+
+    await prisma.follow.create({
+      data: { followerId: req.userId!, followingId: target.id }
+    })
+
+    return res.json({ success: true, data: { following: true } })
+
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}
+
+export async function getFollowers(req: Request, res: Response) {
+  try {
+    const { username } = req.params
+
+    const user = await prisma.user.findUnique({ where: { username } })
+    if (!user) return res.status(404).json({ success: false })
+
+    const followers = await prisma.follow.findMany({
+      where: { followingId: user.id },
+      include: {
+        follower: {
+          select: { id: true, username: true, avatar: true, bio: true }
+        }
+      }
+    })
+
+    return res.json({ success: true, data: followers.map(f => f.follower) })
+
+  } catch (err) {
+    return res.status(500).json({ success: false })
+  }
+}
+
+export async function getFollowing(req: Request, res: Response) {
+  try {
+    const { username } = req.params
+
+    const user = await prisma.user.findUnique({ where: { username } })
+    if (!user) return res.status(404).json({ success: false })
+
+    const following = await prisma.follow.findMany({
+      where: { followerId: user.id },
+      include: {
+        following: {
+          select: { id: true, username: true, avatar: true, bio: true }
+        }
+      }
+    })
+
+    return res.json({ success: true, data: following.map(f => f.following) })
+
+  } catch (err) {
+    return res.status(500).json({ success: false })
+  }
+}
+
+export async function isFollowing(req: AuthRequest, res: Response) {
+  try {
+    const { username } = req.params
+
+    const target = await prisma.user.findUnique({ where: { username } })
+    if (!target) return res.status(404).json({ success: false })
+
+    const existing = await prisma.follow.findFirst({
+      where: { followerId: req.userId!, followingId: target.id }
+    })
+
+    return res.json({ success: true, data: { following: !!existing } })
+
+  } catch (err) {
+    return res.status(500).json({ success: false })
+  }
+}
+
+export async function getActivityFeed(req: AuthRequest, res: Response) {
+  try {
+    const following = await prisma.follow.findMany({
+      where: { followerId: req.userId! },
+      select: { followingId: true }
+    })
+
+    const followingIds = following.map(f => f.followingId)
+
+    if (followingIds.length === 0) {
+      return res.json({ success: true, data: [] })
+    }
+
+    const [reviews, shelfUpdates] = await Promise.all([
+      prisma.review.findMany({
+        where: { userId: { in: followingIds } },
+        include: {
+          user: { select: { username: true, avatar: true } },
+          book: { select: { id: true, title: true, coverUrl: true, authors: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      }),
+      prisma.userBook.findMany({
+        where: { userId: { in: followingIds } },
+        include: {
+          user: { select: { username: true, avatar: true } },
+          book: { select: { id: true, title: true, coverUrl: true, authors: true } }
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 20
+      })
+    ])
+
+    const feed = [
+      ...reviews.map(r => ({
+        type: 'review',
+        id: r.id,
+        user: r.user,
+        book: r.book,
+        rating: r.rating,
+        content: r.content,
+        createdAt: r.createdAt,
+      })),
+      ...shelfUpdates.map(s => ({
+        type: 'shelf',
+        id: s.id,
+        user: s.user,
+        book: s.book,
+        status: s.status,
+        createdAt: s.updatedAt,
+      }))
+    ].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ).slice(0, 30)
+
+    return res.json({ success: true, data: feed })
+
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}

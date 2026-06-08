@@ -41,7 +41,10 @@ export default function BookDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage]       = useState<string | null>(null)
   const [showSpoiler, setShowSpoiler] = useState<Record<string, boolean>>({})
-  const [showFullDesc, setShowFullDesc] = useState(false)
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [editRating, setEditRating]   = useState(0)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const fetchBook = useCallback(async () => {
     try {
@@ -63,6 +66,15 @@ export default function BookDetailPage() {
     fetchBook()
     fetchReviews().catch(console.error)
   }, [fetchBook, fetchReviews])
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+      api.get('/auth/me').then(res => {
+        setCurrentUserId(res.data.data.username)
+      }).catch(() => {})
+    }
+  }, [])
 
   async function addToShelf(status: string) {
     try {
@@ -94,6 +106,62 @@ export default function BookDetailPage() {
       setSubmitting(false)
       setTimeout(() => setMessage(null), 3000)
     }
+  }
+
+  function startEdit(review: Review) {
+    setEditingId(review.id)
+    setEditContent(review.content)
+    setEditRating(review.rating)
+  }
+
+  async function handleUpdateReview(reviewId: string) {
+    try {
+      await api.patch(`/reviews/${reviewId}`, { rating: editRating, content: editContent })
+      setEditingId(null)
+      fetchReviews()
+      fetchBook()
+      setMessage('Yorum güncellendi ✅')
+      setTimeout(() => setMessage(null), 2000)
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: { message?: string } } } }
+      setMessage(e.response?.data?.error?.message || 'Hata oluştu')
+    }
+  }
+
+  async function handleDeleteReview(reviewId: string) {
+    if (!confirm('Yorumu silmek istediğine emin misin?')) return
+    try {
+      await api.delete(`/reviews/${reviewId}`)
+      fetchReviews()
+      fetchBook()
+      setMessage('Yorum silindi ✅')
+      setTimeout(() => setMessage(null), 2000)
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: { message?: string } } } }
+      setMessage(e.response?.data?.error?.message || 'Hata oluştu')
+    }
+  }
+
+  function DescriptionSection({ description }: { description: string }) {
+    const [expanded, setExpanded] = useState(false)
+    const isLong = description.length > 300
+
+    return (
+      <div className="mb-4">
+        <p className={`text-sm text-gray-600 leading-relaxed ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
+          {description}
+        </p>
+        {isLong && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs mt-1 font-semibold"
+            style={{ color: '#7B9E87' }}
+          >
+            {expanded ? '↑ Daha az göster' : '↓ Devamını oku'}
+          </button>
+        )}
+      </div>
+    )
   }
 
   if (loading) {
@@ -152,17 +220,7 @@ export default function BookDetailPage() {
             )}
 
             {book.description && (
-              <div className="mb-4">
-                <p className={`text-sm text-gray-600 ${showFullDesc ? '' : 'line-clamp-3'}`}>
-                  {book.description}
-                </p>
-                <button
-                  onClick={() => setShowFullDesc(v => !v)}
-                  className="text-xs text-[#E8694A] mt-1 hover:underline"
-                >
-                  {showFullDesc ? 'Daha az göster' : 'Devamını gör'}
-                </button>
-              </div>
+              <DescriptionSection description={book.description} />
             )}
 
             <div className="flex gap-2 flex-wrap">
@@ -251,47 +309,105 @@ export default function BookDetailPage() {
           </p>
         ) : (
           <div className="space-y-4">
-            {reviews.map(review => (
-              <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#E8694A] flex items-center justify-center text-white text-sm font-bold">
-                      {review.user.username.charAt(0).toUpperCase()}
+            {reviews.map(review => {
+              const isOwn = currentUserId === review.user.username
+              return (
+                <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-[#7B9E87] flex items-center justify-center text-white text-sm font-bold">
+                        {review.user.username.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-sm text-[#2D2D2D]">@{review.user.username}</span>
                     </div>
-                    <span className="font-medium text-sm text-[#2D2D2D]">@{review.user.username}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex">
+                        {[1,2,3,4,5].map(s => (
+                          <span key={s} className={`text-sm ${s <= review.rating ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
+                        ))}
+                      </div>
+                      {isOwn && (
+                        <div className="flex gap-1 ml-2">
+                          <button
+                            onClick={() => startEdit(review)}
+                            className="text-xs px-2 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReview(review.id)}
+                            className="text-xs px-2 py-1 rounded-md border border-gray-200 hover:bg-red-50 text-red-400"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex">
-                    {[1,2,3,4,5].map(s => (
-                      <span key={s} className={`text-sm ${s <= review.rating ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
-                    ))}
-                  </div>
-                </div>
 
-                {review.hasSpoiler && !showSpoiler[review.id] ? (
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-sm text-gray-500 mb-2">⚠️ Bu yorum spoiler içeriyor</p>
-                    <button
-                      onClick={() => setShowSpoiler(prev => ({ ...prev, [review.id]: true }))}
-                      className="text-xs text-[#E8694A] underline">
-                      Göster
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600">{review.content}</p>
-                )}
+                  {editingId === review.id ? (
+                    <div className="mt-2">
+                      <div className="flex gap-1 mb-2">
+                        {[1,2,3,4,5].map(s => (
+                          <button key={s} type="button" onClick={() => setEditRating(s)}
+                            className={`text-2xl ${s <= editRating ? 'text-yellow-400' : 'text-gray-200'}`}>
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#7B9E87] mb-2"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateReview(review.id)}
+                          className="text-xs px-3 py-1.5 rounded-md text-white"
+                          style={{ backgroundColor: '#7B9E87' }}
+                        >
+                          Kaydet
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="text-xs px-3 py-1.5 rounded-md border border-gray-300"
+                        >
+                          İptal
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {review.hasSpoiler && !showSpoiler[review.id] ? (
+                        <div className="bg-gray-50 rounded-lg p-3 text-center">
+                          <p className="text-sm text-gray-500 mb-2">⚠️ Bu yorum spoiler içeriyor</p>
+                          <button
+                            onClick={() => setShowSpoiler(prev => ({ ...prev, [review.id]: true }))}
+                            className="text-xs underline"
+                            style={{ color: '#7B9E87' }}>
+                            Göster
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">{review.content}</p>
+                      )}
 
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-xs text-gray-400">
-                    {new Date(review.createdAt).toLocaleDateString('tr-TR')}
-                  </span>
-                  <button
-                    onClick={async () => { await api.post(`/reviews/${review.id}/helpful`); fetchReviews() }}
-                    className="text-xs text-gray-400 hover:text-[#E8694A]">
-                    👍 Faydalı ({review.helpful})
-                  </button>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs text-gray-400">
+                          {new Date(review.createdAt).toLocaleDateString('tr-TR')}
+                        </span>
+                        <button
+                          onClick={async () => { await api.post(`/reviews/${review.id}/helpful`); fetchReviews() }}
+                          className="text-xs text-gray-400 hover:text-[#7B9E87]">
+                          👍 Faydalı ({review.helpful})
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

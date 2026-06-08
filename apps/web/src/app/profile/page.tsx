@@ -39,6 +39,9 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [isOwnProfile, setIsOwnProfile] = useState(true)
+  const [profileUsername, setProfileUsername] = useState<string | null>(null)
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -61,8 +64,23 @@ export default function ProfilePage() {
       router.push('/login')
       return
     }
-    fetchProfile()
+    fetchProfile().then(() => {
+      const urlUsername = window.location.pathname.split('/').pop()
+      if (urlUsername && urlUsername !== 'profile') {
+        setProfileUsername(urlUsername)
+      }
+    })
   }, [fetchProfile, router])
+
+  useEffect(() => {
+    if (!profileUsername || !user) return
+    if (profileUsername !== user.username) {
+      setIsOwnProfile(false)
+      api.get(`/users/${profileUsername}/is-following`)
+        .then(res => setIsFollowing(res.data.data.following))
+        .catch(() => {})
+    }
+  }, [profileUsername, user])
 
   if (loading) {
     return (
@@ -98,11 +116,31 @@ export default function ProfilePage() {
                 user.username.charAt(0).toUpperCase()
               )}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-[#2D2D2D]">@{user.username}</h1>
-              <p className="text-gray-500 mt-1">
-                {user.bio || 'Henüz bir biyografi eklenmemiş.'}
-              </p>
+            <div className="flex-1">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#2D2D2D]">@{user.username}</h1>
+                  <p className="text-gray-500 mt-1">
+                    {user.bio || 'Henüz bir biyografi eklenmemiş.'}
+                  </p>
+                </div>
+                {!isOwnProfile && (
+                  <button
+                    onClick={async () => {
+                      const res = await api.post(`/users/${profileUsername}/follow`)
+                      setIsFollowing(res.data.data.following)
+                    }}
+                    className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                    style={{
+                      backgroundColor: isFollowing ? 'white' : '#7B9E87',
+                      color: isFollowing ? '#7B9E87' : 'white',
+                      border: '2px solid #7B9E87'
+                    }}
+                  >
+                    {isFollowing ? 'Takip Ediliyor' : 'Takip Et'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
