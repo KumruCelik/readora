@@ -10,12 +10,14 @@ import {
   getFollowing,
   isFollowing,
   getActivityFeed,
+  getDetailedStats,
 } from './users.controller'
 import { authMiddleware } from '../../middleware/auth'
 
 const router = Router()
 
 router.get('/feed',                     authMiddleware, getActivityFeed)
+router.get('/detailed-stats',           authMiddleware, getDetailedStats)
 router.get('/stats',                    authMiddleware, getStats)
 router.get('/reading-goal',             authMiddleware, getReadingGoal)
 router.post('/reading-goal',            authMiddleware, setReadingGoal)

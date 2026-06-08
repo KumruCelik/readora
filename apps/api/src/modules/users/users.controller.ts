@@ -392,3 +392,122 @@ export async function getActivityFeed(req: AuthRequest, res: Response) {
     })
   }
 }
+
+export async function getDetailedStats(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.userId!
+    const year   = parseInt(req.query.year as string) || new Date().getFullYear()
+
+    const startOfYear = new Date(`${year}-01-01`)
+    const endOfYear   = new Date(`${year}-12-31`)
+
+    const [totalRead, totalReviews, totalFollowers, totalFollowing] = await Promise.all([
+      prisma.userBook.count({ where: { userId, status: 'READ' } }),
+      prisma.review.count({ where: { userId } }),
+      prisma.follow.count({ where: { followingId: userId } }),
+      prisma.follow.count({ where: { followerId: userId } }),
+    ])
+
+    const yearlyBooks = await prisma.userBook.findMany({
+      where: {
+        userId,
+        status: 'READ',
+        finishedAt: { gte: startOfYear, lte: endOfYear }
+      },
+      include: {
+        book: { select: { genres: true, authors: true, title: true, coverUrl: true } }
+      }
+    })
+
+    const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      count: 0,
+      label: ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][i]
+    }))
+
+    yearlyBooks.forEach(ub => {
+      if (ub.finishedAt) {
+        const month = new Date(ub.finishedAt).getMonth()
+        monthlyData[month].count++
+      }
+    })
+
+    const genreCount: Record<string, number> = {}
+    yearlyBooks.forEach(ub => {
+      ub.book.genres.forEach(g => {
+        genreCount[g] = (genreCount[g] || 0) + 1
+      })
+    })
+
+    const topGenres = Object.entries(genreCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([genre, count]) => ({ genre, count }))
+
+    const authorCount: Record<string, number> = {}
+    yearlyBooks.forEach(ub => {
+      ub.book.authors.forEach(a => {
+        authorCount[a] = (authorCount[a] || 0) + 1
+      })
+    })
+
+    const topAuthors = Object.entries(authorCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([author, count]) => ({ author, count }))
+
+    const reviews = await prisma.review.findMany({
+      where: { userId },
+      select: { rating: true }
+    })
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0
+
+    const goalData = await prisma.userBook.count({
+      where: {
+        userId,
+        status: 'READ',
+        finishedAt: { gte: startOfYear, lte: endOfYear }
+      }
+    })
+
+    const recentBooks = await prisma.userBook.findMany({
+      where: { userId, status: 'READ' },
+      include: {
+        book: {
+          select: { id: true, title: true, coverUrl: true, authors: true, avgRating: true }
+        }
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 5
+    })
+
+    return res.json({
+      success: true,
+      data: {
+        overview: {
+          totalRead,
+          totalReviews,
+          totalFollowers,
+          totalFollowing,
+          avgRating: parseFloat(avgRating.toFixed(1)),
+          yearlyRead: yearlyBooks.length,
+        },
+        monthlyData,
+        topGenres,
+        topAuthors,
+        recentBooks: recentBooks.map(rb => rb.book),
+        year,
+        goalData,
+      }
+    })
+
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}

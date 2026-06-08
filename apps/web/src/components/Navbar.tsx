@@ -132,6 +132,11 @@ export default function Navbar() {
                 Listelerim
               </Link>
 
+              <Link href="/stats"
+                style={{ fontSize: 13, color: '#424843', fontWeight: 500 }}>
+                İstatistikler
+              </Link>
+
               <Link href="/profile"
                 style={{ fontSize: 13, color: '#424843', fontWeight: 500 }}>
                 Profil
