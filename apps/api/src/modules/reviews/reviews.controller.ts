@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '../../lib/prisma'
 import { AuthRequest } from '../../middleware/auth'
+import { createNotification } from '../notifications/notifications.controller'
 
 export async function createReview(req: AuthRequest, res: Response) {
   try {
@@ -172,6 +173,15 @@ export async function voteHelpful(req: AuthRequest, res: Response) {
     const review = await prisma.review.update({
       where: { id },
       data: { helpful: { increment: 1 } }
+    })
+
+    await createNotification({
+      userId:   review.userId,
+      type:     'REVIEW_LIKE',
+      message:  'Yorumun faydalı bulundu 👍',
+      actorId:  req.userId!,
+      reviewId: id,
+      bookId:   review.bookId,
     })
 
     return res.json({ success: true, data: { helpful: review.helpful } })

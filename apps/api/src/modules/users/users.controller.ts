@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma'
 import { AuthRequest } from '../../middleware/auth'
 import cloudinary from '../../lib/cloudinary'
 import redis from '../../lib/redis'
+import { createNotification } from '../notifications/notifications.controller'
 
 export async function uploadAvatar(req: AuthRequest, res: Response) {
   try {
@@ -241,6 +242,13 @@ export async function followUser(req: AuthRequest, res: Response) {
 
     await prisma.follow.create({
       data: { followerId: req.userId!, followingId: target.id }
+    })
+
+    await createNotification({
+      userId:  target.id,
+      type:    'FOLLOW',
+      message: `@${req.userId} seni takip etmeye başladı`,
+      actorId: req.userId!,
     })
 
     return res.json({ success: true, data: { following: true } })
