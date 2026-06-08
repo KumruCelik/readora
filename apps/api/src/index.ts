@@ -7,6 +7,7 @@ import usersRouter  from './modules/users/users.router'
 import shelvesRouter from './modules/shelves/shelves.router'
 import reviewsRouter from './modules/reviews/reviews.router'
 import notificationsRouter from './modules/notifications/notifications.router'
+import listsRouter from './modules/lists/lists.router'
 
 dotenv.config()
 
@@ -23,6 +24,7 @@ app.use('/api/v1/users',   usersRouter)
 app.use('/api/v1/shelves', shelvesRouter)
 app.use('/api/v1/reviews', reviewsRouter)
 app.use('/api/v1/notifications', notificationsRouter)
+app.use('/api/v1/lists', listsRouter)
 
 app.get('/health', (req, res) => {
   res.json({
