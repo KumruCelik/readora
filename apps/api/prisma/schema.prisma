@@ -27,6 +27,9 @@ model User {
   notifications      Notification[] @relation("NotificationUser")
   actorNotifications Notification[] @relation("NotificationActor")
   bookLists          BookList[]
+  ownedClubs         BookClub[]           @relation("ClubOwner")
+  clubMemberships    BookClubMember[]
+  clubDiscussions    BookClubDiscussion[]
 }
 
 model Book {
@@ -45,10 +48,11 @@ model Book {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  userBooks  UserBook[]
-  reviews    Review[]
-  editions   Edition[]
-  listItems  BookListItem[]
+  userBooks      UserBook[]
+  reviews        Review[]
+  editions       Edition[]
+  listItems      BookListItem[]
+  currentInClubs BookClub[]     @relation("ClubCurrentBook")
 }
 
 model Edition {
@@ -204,4 +208,50 @@ model Notification {
   actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+}
+
+model BookClub {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  coverImage    String?
+  isPrivate     Boolean  @default(false)
+  ownerId       String
+  currentBookId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  owner       User                 @relation("ClubOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  currentBook Book?                @relation("ClubCurrentBook", fields: [currentBookId], references: [id], onDelete: SetNull)
+  members     BookClubMember[]
+  discussions BookClubDiscussion[]
+
+  @@index([ownerId])
+}
+
+model BookClubMember {
+  id       String   @id @default(cuid())
+  clubId   String
+  userId   String
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
+
+  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+}
+
+model BookClubDiscussion {
+  id        String   @id @default(cuid())
+  clubId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
 }

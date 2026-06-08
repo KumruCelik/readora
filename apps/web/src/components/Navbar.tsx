@@ -137,6 +137,11 @@ export default function Navbar() {
                 İstatistikler
               </Link>
 
+              <Link href="/clubs"
+                style={{ fontSize: 13, color: '#424843', fontWeight: 500 }}>
+                Kulüpler
+              </Link>
+
               <Link href="/profile"
                 style={{ fontSize: 13, color: '#424843', fontWeight: 500 }}>
                 Profil
