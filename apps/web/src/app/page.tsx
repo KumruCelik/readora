@@ -16,6 +16,16 @@ interface FeedItem {
   createdAt: string
 }
 
+interface Recommendation {
+  id: string | null
+  title: string
+  authors: string[]
+  coverUrl: string | null
+  avgRating: number
+  genres: string[]
+  reason: string
+}
+
 const statusLabel: Record<string, string> = {
   WANT_TO_READ: '📌 Okuyacağım listesine ekledi',
   READING:      '📖 Okumaya başladı',
@@ -23,15 +33,22 @@ const statusLabel: Record<string, string> = {
 }
 
 export default function HomePage() {
-  const [feed, setFeed]             = useState<FeedItem[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [feed, setFeed]                     = useState<FeedItem[]>([])
+  const [loading, setLoading]               = useState(true)
+  const [isLoggedIn, setIsLoggedIn]         = useState(false)
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [recsLoading, setRecsLoading]       = useState(false)
+  const [recsMessage, setRecsMessage]       = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken')
     setIsLoggedIn(!!token)
-    if (token) fetchFeed()
-    else setLoading(false)
+    if (token) {
+      fetchFeed()
+      fetchRecommendations()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   async function fetchFeed() {
@@ -42,6 +59,19 @@ export default function HomePage() {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchRecommendations() {
+    setRecsLoading(true)
+    try {
+      const res = await api.get('/books/recommendations')
+      setRecommendations(res.data.data)
+      setRecsMessage(res.data.meta?.message || 'Sana özel öneriler')
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setRecsLoading(false)
     }
   }
 
@@ -87,94 +117,205 @@ export default function HomePage() {
             </div>
           </div>
 
-        ) : loading ? (
-
-          <div className="flex justify-center py-20">
-            <div className="text-gray-400">Yükleniyor...</div>
-          </div>
-
-        ) : feed.length === 0 ? (
-
-          /* Feed boş */
-          <div style={{ backgroundColor: 'white', borderRadius: 20, padding: 32, textAlign: 'center', border: '1px solid #c1c8c1' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📰</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2D2D2D', marginBottom: 8 }}>
-              Henüz güncelleme yok
-            </h2>
-            <p style={{ fontSize: 14, color: '#9DB5A4', lineHeight: 1.7, marginBottom: 20 }}>
-              Arkadaşlarını takip ederek onların okuma güncellemelerini burada görebilirsin.
-            </p>
-            <Link href="/books/search"
-              style={{ backgroundColor: '#7B9E87', color: 'white', borderRadius: 12, padding: '12px 24px', fontWeight: 700, fontSize: 14 }}>
-              Kitap Keşfet
-            </Link>
-          </div>
-
         ) : (
 
-          /* Feed */
-          <div className="flex flex-col gap-4">
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2D2D2D' }}>
-              📰 Arkadaşlarının Aktiviteleri
-            </h2>
+          /* Giriş yapılmış */
+          <div>
 
-            {feed.map(item => (
-              <div key={`${item.type}-${item.id}`}
-                style={{ backgroundColor: 'white', borderRadius: 16, padding: 16, border: '1px solid #e8e8e5' }}>
-
-                {/* Kullanıcı */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7B9E87', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>
-                    {item.user.username[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: '#2D2D2D' }}>
-                      @{item.user.username}
-                    </span>
-                    <span style={{ fontSize: 13, color: '#9DB5A4' }}>
-                      {' '}{item.type === 'shelf'
-                        ? statusLabel[item.status!] || item.status
-                        : '⭐ yorum yazdı'}
-                    </span>
-                  </div>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, color: '#c1c8c1' }}>
-                    {new Date(item.createdAt).toLocaleDateString('tr-TR')}
-                  </span>
-                </div>
-
-                {/* Kitap */}
-                <Link href={`/books/${item.book.id}`}>
-                  <div className="flex gap-3 hover:opacity-80 transition-opacity">
-                    <div style={{ width: 48, height: 64, borderRadius: 8, overflow: 'hidden', backgroundColor: '#EEF2EC', flexShrink: 0 }}>
-                      {item.book.coverUrl ? (
-                        <img src={item.book.coverUrl} alt={item.book.title}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 20 }}>📖</div>
-                      )}
-                    </div>
-                    <div>
-                      <p style={{ fontWeight: 700, fontSize: 14, color: '#2D2D2D' }}>{item.book.title}</p>
-                      <p style={{ fontSize: 12, color: '#9DB5A4' }}>{item.book.authors?.[0]}</p>
-                      {item.type === 'review' && item.rating && (
-                        <div className="flex mt-1">
-                          {[1,2,3,4,5].map(s => (
-                            <span key={s} style={{ fontSize: 12, color: s <= item.rating! ? '#f59e0b' : '#e5e7eb' }}>★</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-
-                {/* Yorum içeriği */}
-                {item.type === 'review' && item.content && (
-                  <p style={{ fontSize: 13, color: '#424843', marginTop: 10, lineHeight: 1.6, borderTop: '1px solid #f4f4f0', paddingTop: 10 }}>
-                    &quot;{item.content}&quot;
+            {/* Sana Özel Öneriler */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2D2D2D' }}>
+                    ✨ Sana Özel
+                  </h2>
+                  <p style={{ fontSize: 13, color: '#9DB5A4', marginTop: 2 }}>
+                    {recsMessage}
                   </p>
-                )}
+                </div>
+                <button
+                  onClick={fetchRecommendations}
+                  disabled={recsLoading}
+                  style={{ fontSize: 12, color: '#7B9E87', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  {recsLoading ? '...' : '🔄 Yenile'}
+                </button>
               </div>
-            ))}
+
+              {recsLoading ? (
+                <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+                  {[1,2,3,4].map(i => (
+                    <div key={i} style={{ flexShrink: 0, width: 120 }}>
+                      <div style={{ width: 120, height: 170, borderRadius: 10, backgroundColor: '#EEF2EC', marginBottom: 8 }} />
+                      <div style={{ height: 12, backgroundColor: '#EEF2EC', borderRadius: 6, marginBottom: 6 }} />
+                      <div style={{ height: 10, backgroundColor: '#EEF2EC', borderRadius: 6, width: '70%' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : recommendations.length === 0 ? (
+                <div style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, textAlign: 'center', border: '1px solid #e8e8e5' }}>
+                  <p style={{ fontSize: 14, color: '#9DB5A4' }}>
+                    Kitap okudukça sana özel öneriler burada belirecek! 📚
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+                  {recommendations.map((rec, index) => (
+                    <div
+                      key={rec.id || index}
+                      style={{ flexShrink: 0, width: 130, cursor: rec.id ? 'pointer' : 'default' }}
+                      onClick={() => rec.id && window.location.assign(`/books/${rec.id}`)}
+                    >
+                      {/* Kapak */}
+                      <div style={{
+                        width: 130, height: 180,
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                        backgroundColor: '#EEF2EC',
+                        marginBottom: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                        position: 'relative'
+                      }}>
+                        {rec.coverUrl ? (
+                          <img
+                            src={rec.coverUrl}
+                            alt={rec.title}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>
+                            📖
+                          </div>
+                        )}
+                        {/* Puan badge */}
+                        {rec.avgRating > 0 && (
+                          <div style={{
+                            position: 'absolute', bottom: 6, right: 6,
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            borderRadius: 8, padding: '2px 6px',
+                            fontSize: 11, color: 'white', fontWeight: 700
+                          }}>
+                            ⭐ {rec.avgRating.toFixed(1)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bilgi */}
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#2D2D2D', lineHeight: 1.4, marginBottom: 3 }}
+                        className="line-clamp-2">
+                        {rec.title}
+                      </p>
+                      <p style={{ fontSize: 11, color: '#9DB5A4', marginBottom: 4 }}
+                        className="line-clamp-1">
+                        {rec.authors?.[0]}
+                      </p>
+
+                      {/* Öneri sebebi */}
+                      <p style={{
+                        fontSize: 10, color: '#7B9E87',
+                        lineHeight: 1.4, fontStyle: 'italic'
+                      }}
+                        className="line-clamp-2">
+                        {rec.reason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Feed */}
+            {loading ? (
+
+              <div className="flex justify-center py-20">
+                <div className="text-gray-400">Yükleniyor...</div>
+              </div>
+
+            ) : feed.length === 0 ? (
+
+              /* Feed boş */
+              <div style={{ backgroundColor: 'white', borderRadius: 20, padding: 32, textAlign: 'center', border: '1px solid #c1c8c1' }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📰</div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2D2D2D', marginBottom: 8 }}>
+                  Henüz güncelleme yok
+                </h2>
+                <p style={{ fontSize: 14, color: '#9DB5A4', lineHeight: 1.7, marginBottom: 20 }}>
+                  Arkadaşlarını takip ederek onların okuma güncellemelerini burada görebilirsin.
+                </p>
+                <Link href="/books/search"
+                  style={{ backgroundColor: '#7B9E87', color: 'white', borderRadius: 12, padding: '12px 24px', fontWeight: 700, fontSize: 14 }}>
+                  Kitap Keşfet
+                </Link>
+              </div>
+
+            ) : (
+
+              /* Feed */
+              <div className="flex flex-col gap-4">
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#2D2D2D' }}>
+                  📰 Arkadaşlarının Aktiviteleri
+                </h2>
+
+                {feed.map(item => (
+                  <div key={`${item.type}-${item.id}`}
+                    style={{ backgroundColor: 'white', borderRadius: 16, padding: 16, border: '1px solid #e8e8e5' }}>
+
+                    {/* Kullanıcı */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7B9E87', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>
+                        {item.user.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#2D2D2D' }}>
+                          @{item.user.username}
+                        </span>
+                        <span style={{ fontSize: 13, color: '#9DB5A4' }}>
+                          {' '}{item.type === 'shelf'
+                            ? statusLabel[item.status!] || item.status
+                            : '⭐ yorum yazdı'}
+                        </span>
+                      </div>
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: '#c1c8c1' }}>
+                        {new Date(item.createdAt).toLocaleDateString('tr-TR')}
+                      </span>
+                    </div>
+
+                    {/* Kitap */}
+                    <Link href={`/books/${item.book.id}`}>
+                      <div className="flex gap-3 hover:opacity-80 transition-opacity">
+                        <div style={{ width: 48, height: 64, borderRadius: 8, overflow: 'hidden', backgroundColor: '#EEF2EC', flexShrink: 0 }}>
+                          {item.book.coverUrl ? (
+                            <img src={item.book.coverUrl} alt={item.book.title}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 20 }}>📖</div>
+                          )}
+                        </div>
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: 14, color: '#2D2D2D' }}>{item.book.title}</p>
+                          <p style={{ fontSize: 12, color: '#9DB5A4' }}>{item.book.authors?.[0]}</p>
+                          {item.type === 'review' && item.rating && (
+                            <div className="flex mt-1">
+                              {[1,2,3,4,5].map(s => (
+                                <span key={s} style={{ fontSize: 12, color: s <= item.rating! ? '#f59e0b' : '#e5e7eb' }}>★</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+
+                    {/* Yorum içeriği */}
+                    {item.type === 'review' && item.content && (
+                      <p style={{ fontSize: 13, color: '#424843', marginTop: 10, lineHeight: 1.6, borderTop: '1px solid #f4f4f0', paddingTop: 10 }}>
+                        &quot;{item.content}&quot;
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
         )}
       </div>

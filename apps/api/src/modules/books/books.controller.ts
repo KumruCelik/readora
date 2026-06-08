@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 import { searchBooks, getBookByISBN, searchTurkishBooks } from './books.service'
 import { prisma } from '../../lib/prisma'
+import { getBookRecommendations } from '../../lib/gemini'
+import { AuthRequest } from '../../middleware/auth'
 
 export async function search(req: Request, res: Response) {
   try {
@@ -102,10 +104,87 @@ export async function getById(req: Request, res: Response) {
 
     return res.json({ success: true, data: book })
 
-  } catch (err) {
+  } catch {
     return res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Sunucu hatası' }
+    })
+  }
+}
+
+export async function getRecommendations(req: AuthRequest, res: Response) {
+  try {
+    const userBooks = await prisma.userBook.findMany({
+      where: {
+        userId: req.userId!,
+        status: { in: ['READ', 'READING'] }
+      },
+      include: {
+        book: { select: { title: true, authors: true, genres: true } }
+      },
+      take: 20,
+      orderBy: { updatedAt: 'desc' }
+    })
+
+    let readBooks = userBooks.map(ub => ub.book)
+    let meta = { reason: 'personalized', message: 'Okuma geçmişine göre öneriler' }
+
+    if (readBooks.length < 3) {
+      const popular = await prisma.book.findMany({
+        select: { title: true, authors: true, genres: true },
+        orderBy: { ratingCount: 'desc' },
+        take: 10
+      })
+      readBooks = [...readBooks, ...popular]
+      meta = { reason: 'popular', message: 'Popüler kitaplara göre öneriler' }
+    }
+
+    const recommendations = await getBookRecommendations(readBooks)
+
+    const { default: axios } = await import('axios')
+    const { findOrCreateBook } = await import('../../lib/isbn')
+
+    const enriched = await Promise.all(
+      recommendations.map(async (rec) => {
+        try {
+          const query = encodeURIComponent(`${rec.title} ${rec.author}`)
+          const gbRes = await axios.get(
+            `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1&key=${process.env.GOOGLE_BOOKS_API_KEY}`
+          )
+          const item = gbRes.data.items?.[0]
+          if (!item) return { ...rec, book: null }
+
+          const info = item.volumeInfo
+          const book = await findOrCreateBook({
+            googleId:    item.id,
+            isbn:        info.industryIdentifiers?.find((i: { type: string; identifier: string }) => i.type === 'ISBN_13')?.identifier,
+            title:       info.title,
+            authors:     info.authors || [rec.author],
+            genres:      info.categories || [],
+            description: info.description,
+            coverUrl:    info.imageLinks?.thumbnail?.replace('http://', 'https://'),
+            language:    info.language || 'tr',
+            publishedAt: info.publishedDate ? new Date(info.publishedDate) : null,
+          })
+
+          return { ...rec, book }
+        } catch {
+          return { ...rec, book: null }
+        }
+      })
+    )
+
+    return res.json({
+      success: true,
+      data: enriched.filter(r => r.book !== null),
+      meta
+    })
+
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Öneri alınamadı' }
     })
   }
 }
