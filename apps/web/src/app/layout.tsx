@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import Navbar from '@/components/Navbar'
+import { BookSearchProvider } from '@/components/BookSearchModal'
 import './globals.css'
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -29,8 +30,10 @@ export default function RootLayout({
   return (
     <html lang="tr" className={cn("font-sans", geist.variable)}>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <Navbar />
-        {children}
+        <BookSearchProvider>
+          <Navbar />
+          {children}
+        </BookSearchProvider>
       </body>
     </html>
   )

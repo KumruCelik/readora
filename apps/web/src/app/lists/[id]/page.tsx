@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import Navbar from '@/components/Navbar'
 import api from '@/lib/api'
+import { useBookSearch } from '@/components/BookSearchModal'
 
 interface BookList {
   id: string
@@ -26,6 +26,7 @@ interface BookList {
 }
 
 export default function ListDetailPage() {
+  const { openSearch } = useBookSearch()
   const { id } = useParams<{ id: string }>()
   const [list, setList]     = useState<BookList | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,7 +56,6 @@ export default function ListDetailPage() {
 
   if (loading) return (
     <div className="min-h-screen" style={{ backgroundColor: '#faf9f6' }}>
-      <Navbar />
       <div style={{ textAlign: 'center', padding: 60, color: '#9DB5A4' }}>Yükleniyor...</div>
     </div>
   )
@@ -64,9 +64,7 @@ export default function ListDetailPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#faf9f6' }}>
-      <Navbar />
-
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-desktop mx-auto px-4 md:px-8 py-8">
 
         {/* Geri */}
         <Link href="/lists" style={{ fontSize: 13, color: '#9DB5A4', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 16 }}>
@@ -75,7 +73,7 @@ export default function ListDetailPage() {
 
         {/* Başlık */}
         <div style={{ backgroundColor: 'white', borderRadius: 20, padding: 24, marginBottom: 20, border: '1px solid #e8e8e5' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#2D2D2D', marginBottom: 6 }}>
+          <h1 style={{ fontFamily: 'serif', fontSize: 28, fontWeight: 700, color: '#2D2D2D', marginBottom: 6 }}>
             {list.title}
           </h1>
           {list.description && (
@@ -99,13 +97,13 @@ export default function ListDetailPage() {
             <p style={{ fontSize: 16, color: '#9DB5A4' }}>
               Bu listede henüz kitap yok.
             </p>
-            <Link href="/books/search"
-              style={{ display: 'inline-block', marginTop: 16, backgroundColor: '#7B9E87', color: 'white', borderRadius: 10, padding: '10px 20px', fontWeight: 700, fontSize: 14 }}>
+            <button onClick={openSearch}
+              style={{ display: 'inline-block', marginTop: 16, backgroundColor: '#7B9E87', color: 'white', borderRadius: 10, padding: '10px 20px', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>
               Kitap Ekle
-            </Link>
+            </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {list.books.map(({ book, note }, index) => (
               <div key={book.id}
                 style={{ backgroundColor: 'white', borderRadius: 16, padding: 16, border: '1px solid #e8e8e5', display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -133,7 +131,7 @@ export default function ListDetailPage() {
                   <p style={{ fontSize: 12, color: '#9DB5A4' }}>{book.authors?.[0]}</p>
                   {note && (
                     <p style={{ fontSize: 12, color: '#424843', marginTop: 4, fontStyle: 'italic' }}>
-                      "{note}"
+                      &quot;{note}&quot;
                     </p>
                   )}
                   {book.avgRating > 0 && (
@@ -157,10 +155,10 @@ export default function ListDetailPage() {
 
         {/* Kitap Ekle Butonu */}
         <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <Link href="/books/search"
-            style={{ backgroundColor: '#7B9E87', color: 'white', borderRadius: 12, padding: '12px 28px', fontWeight: 700, fontSize: 14 }}>
+          <button onClick={openSearch}
+            style={{ backgroundColor: '#7B9E87', color: 'white', borderRadius: 12, padding: '12px 28px', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>
             + Kitap Ekle
-          </Link>
+          </button>
         </div>
 
       </div>

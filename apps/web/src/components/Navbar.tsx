@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import { useBookSearch } from '@/components/BookSearchModal'
 
 interface Notification {
   id: string
@@ -14,6 +15,7 @@ interface Notification {
 
 export default function Navbar() {
   const router = useRouter()
+  const { openSearch } = useBookSearch()
   const [isLoggedIn, setIsLoggedIn]       = useState(false)
   const [unreadCount, setUnreadCount]     = useState(0)
   const [showNotifs, setShowNotifs]       = useState(false)
@@ -55,17 +57,17 @@ export default function Navbar() {
 
   return (
     <nav style={{ backgroundColor: 'white', borderBottom: '1px solid #e8e8e5', position: 'sticky', top: 0, zIndex: 50 }}>
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-desktop mx-auto px-4 md:px-8 h-14 flex items-center justify-between">
 
         <Link href="/" style={{ fontFamily: 'serif', fontSize: 22, fontWeight: 700, color: '#446651' }}>
           📚 Readora
         </Link>
 
         <div className="flex items-center gap-3">
-          <Link href="/books/search"
-            style={{ fontSize: 13, color: '#424843', fontWeight: 500 }}>
+          <button onClick={openSearch}
+            style={{ fontSize: 13, color: '#424843', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             Kitap Ara
-          </Link>
+          </button>
 
           {isLoggedIn ? (
             <>
@@ -158,7 +160,7 @@ export default function Navbar() {
                 style={{ fontSize: 13, color: '#424843', fontWeight: 500 }}>
                 Giriş Yap
               </Link>
-              <Link href="/register"
+              <Link href="/login"
                 style={{ backgroundColor: '#7B9E87', color: 'white', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700 }}>
                 Kayıt Ol
               </Link>

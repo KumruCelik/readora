@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Navbar from '@/components/Navbar'
 import api from '@/lib/api'
 
 interface BookList {
@@ -80,14 +79,12 @@ export default function ListsPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#faf9f6' }}>
-      <Navbar />
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-desktop mx-auto px-4 md:px-8 py-8">
 
         {/* Başlık */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#2D2D2D' }}>
+            <h1 style={{ fontFamily: 'serif', fontSize: 32, fontWeight: 700, color: '#2D2D2D' }}>
               📋 Listopia
             </h1>
             <p style={{ fontSize: 14, color: '#9DB5A4', marginTop: 4 }}>
@@ -188,7 +185,7 @@ export default function ListsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {lists.map(list => (
               <div key={list.id}
                 style={{ backgroundColor: 'white', borderRadius: 20, padding: 20, border: '1px solid #e8e8e5' }}>
